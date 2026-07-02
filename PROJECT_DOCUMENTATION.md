@@ -10,6 +10,14 @@ The system is designed to:
 - classify the image using a YOLOv8 custom model,
 - save the result, and
 - notify the user through Telegram if a monkey is detected.
+- display metrics and recent images on the React frontend dashboard.
+
+---
+
+> [!IMPORTANT]
+> **For Collaborators and AI Assistants:**
+> When running this project on a different machine, you MUST update the absolute paths in `server.py` to match the local environment.
+> Specifically, search for `MODEL_PATH` and `BASE_FOLDER` (if absolute) and update them. The recommended approach is to use relative paths where possible.
 
 ---
 
@@ -54,9 +62,23 @@ There is also an older prototype server in [serverttest.py](serverttest.py), whi
 
 ### Model
 The trained detection model is expected at:
-- the path configured in [server.py](server.py)
+- the path configured in `server.py` (`MODEL_PATH`). If this path is absolute (e.g., `C:\Users\...`), please change it to match where `best.pt` is located on your machine.
 
 The current version uses a custom YOLOv8 model file named best.pt.
+
+### Frontend Dashboard
+A modern Power BI-inspired dashboard built with React (Vite) and Tailwind CSS v4.
+- **Location**: `frontend/` directory.
+- **Features**: 
+  - **Environment Toggle**: Switch between **Live Production** (actual Flask logs) and **Demo Sandbox** (mock data for presentation, featuring 48 sensor captures and timeline distributions).
+  - **BI Filter Pane**: Left-hand sidebar panel to filter report results in real-time (All, Intrusions, Safe Checks).
+  - **KPI ribbon**: High-contrast, glowing stats (Total Detections, Intrusions, Safe Checks, and YOLOv8 average confidence accuracy).
+  - **Detection Frequency Area Graph**: Custom styled Recharts area graph tracking detection timeline details.
+  - **Model Accuracy Trend Line**: Dynamic line chart plotting confidence levels over time.
+  - **Live Camera Feed & Activity Grid**: Responsive grid layout showing captures with status banners, test trace indexes, and capture timestamps.
+  - **Edge Diagnostics Panel**: Side panel detailing battery level, RSSI connection values, storage space, and CPU loads.
+- **Vite Integration**: Integrated natively using `@tailwindcss/vite` for lightning-fast compilation.
+- **Connection**: Fetches real-time data from the Flask API on the backend.
 
 ---
 
@@ -117,10 +139,12 @@ They include diagnostic versions for checking hardware like LEDs, buzzer, PIR, s
 
 ### Python Environment
 Install the required libraries using:
-- pip install flask ultralytics pillow requests
+- `pip install flask flask-cors ultralytics pillow requests`
 
-### Model File
-Place the trained YOLOv8 model file at the path configured in [server.py](server.py).
+### Model File & Paths
+Place the trained YOLOv8 model file at the path configured in `server.py`. 
+> **Note:** Open `server.py` and modify `MODEL_PATH` to point to the correct location of your `best.pt` file if you are on a different PC. 
+> Ensure `BASE_FOLDER` is pointing to `capture_image` inside this project directory.
 
 ### Wi-Fi and Server Address
 Update the ESP32 firmware to use the correct Wi-Fi credentials and your laptop’s local IP address.
@@ -131,12 +155,15 @@ If you want alerts, configure a Telegram bot token and chat ID before running th
 ---
 
 ## 7. How to Run the Project
-1. Start the Python server from [server.py](server.py).
-2. Ensure the model file exists at the configured model path.
-3. Upload the firmware to the ESP32-S3 board.
-4. Power the board and wait for Wi-Fi connection.
-5. Trigger the PIR sensor to start image capture and classification.
-6. Check the saved images and CSV log on the Desktop.
+1. Open `server.py` and double-check that `MODEL_PATH` points to the correct location of `best.pt` on your computer.
+2. Start the Python server: `python server.py`.
+3. In a new terminal, navigate to the frontend folder: `cd frontend`.
+4. Install frontend dependencies: `npm install`.
+5. Start the frontend dashboard: `npm run dev`.
+6. Upload the firmware to the ESP32-S3 board.
+7. Power the board and wait for Wi-Fi connection.
+8. Trigger the PIR sensor to start image capture and classification.
+9. Check the saved images in the `capture_image` folder and view real-time data on the React dashboard.
 
 ---
 

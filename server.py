@@ -25,14 +25,13 @@ from ultralytics import YOLO
 # Set these before running the server:
 #   $env:TELEGRAM_TOKEN="<your_bot_token>"
 #   $env:TELEGRAM_CHAT_ID="<your_chat_id>"
-TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN", "")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN", "8946920626:AAHCVPc32nvPcCHbEhUrr_eUQXtzk3_UHDg")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "5282666841")
 
 # ── Paths ─────────────────────────────────────────────────────
-PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-BASE_FOLDER = os.path.join(PROJECT_DIR, "captures")
-MODEL_PATH  = r"C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\monkeymodel\monkey-guard\backend\models\best.pt"
-CSV_LOG_PATH = os.path.join(PROJECT_DIR, "detection_log.csv")
+BASE_FOLDER   = os.path.join(os.path.expanduser("~"), "Desktop", "ITT569_captures")
+MODEL_PATH    = r"C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\monkeymodel\monkey-guard\backend\models\best.pt"
+CSV_LOG_PATH  = os.path.join(BASE_FOLDER, "detection_log.csv")
 os.makedirs(BASE_FOLDER, exist_ok=True)
 
 # ── Logging ───────────────────────────────────────────────────
@@ -176,8 +175,11 @@ def test_telegram_connection():
         return False, str(exc)
 
 # ── Flask app ─────────────────────────────────────────────────
-from flask import Flask, request
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
+
 app = Flask(__name__)
+CORS(app)  # Enable CORS for frontend integration
 
 @app.route("/classify", methods=["POST"])
 def classify():
@@ -242,14 +244,6 @@ def classify():
 @app.route("/health", methods=["GET"])
 def health():
     return "ITT569 YOLOv8 server running", 200
-
-
-@app.route("/test_telegram", methods=["GET"])
-def test_telegram():
-    ok, detail = test_telegram_connection()
-    if ok:
-        return {"ok": True, "message": detail}, 200
-    return {"ok": False, "message": detail}, 400
 
 
 if __name__ == "__main__":
