@@ -1,4 +1,38 @@
-﻿# Confidential local settings: do not commit
+﻿# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual envs
+.venv/
+venv/
+
+# IDEs
+.vscode/
+.idea/
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Project files & secrets
+.env
+.env.*
+models/best.pt
+models/*.pt
+
+# Captured data and logs
+captures/
+detection_log.csv
+detection_log_fallback.csv
+
+# OS
+.DS_Store
+# Confidential local settings: do not commit
 .env
 esp32s3_firmware/config.h
 captures
