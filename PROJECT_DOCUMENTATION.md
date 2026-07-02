@@ -155,7 +155,22 @@ And to write the CSV log to:
 - `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project\detection_log.csv`
 
 ### Wi-Fi and Server Address
-Update the ESP32 firmware to use the correct Wi-Fi credentials and your laptop’s local IP address.
+Update the ESP32 firmware settings in `esp32s3_firmware/config.h` to use the correct Wi-Fi credentials and your laptop’s local IP address.
+
+### Local Configuration Files
+- The project now uses `.env` for backend secrets:
+  - `TELEGRAM_TOKEN`
+  - `TELEGRAM_CHAT_ID`
+- The ESP32 firmware uses `esp32s3_firmware/config.h` for device settings:
+  - `WIFI_SSID`
+  - `WIFI_PASSWORD`
+  - `SERVER_URL`
+- Both files are included in `.gitignore` so sensitive credentials do not get committed.
+- If `.env` was already tracked by Git, stop tracking it with:
+  ```powershell
+  git rm --cached .env
+  git commit -m "Stop tracking .env"
+  ```
 
 ### Telegram Setup
 If you want alerts, configure a Telegram bot token and chat ID before running the server.
