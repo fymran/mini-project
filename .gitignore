@@ -2,4 +2,4 @@
 .env
 esp32s3_firmware/config.h
 captures
-
+detection_log.csv
