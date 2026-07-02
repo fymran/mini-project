@@ -1,0 +1,127 @@
+=============================================================
+ITT569 SETUP GUIDE — WINDOWS LAPTOP
+=============================================================
+
+STEP 1: INSTALL PYTHON REQUIREMENTS
+-------------------------------------
+Open Windows CMD or PowerShell and run:
+
+  pip install flask tensorflow pillow numpy requests
+
+This will download ~500MB (TensorFlow). Do this on good WiFi.
+First run of server.py will also download MobileNetV2 (~14MB).
+
+
+STEP 2: FIND YOUR LAPTOP'S LOCAL IP ADDRESS
+---------------------------------------------
+In CMD, run:
+
+  ipconfig
+
+Look for:
+  Wireless LAN adapter Wi-Fi:
+    IPv4 Address . . . . . . : 192.168.X.XXX
+
+Copy that IP address.
+
+
+STEP 3: UPDATE FIRMWARE
+------------------------
+In esp32s3_firmware.ino, find these lines and fill them in:
+
+  const char* WIFI_SSID     = "YOUR_WIFI_SSID";
+  const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+  const char* SERVER_URL    = "http://192.168.X.XXX:5000/classify";
+
+
+STEP 4: SET UP TELEGRAM BOT
+-----------------------------
+1. Open Telegram, search for @BotFather
+2. Send /newbot and follow instructions
+3. Copy the token (looks like: 123456789:ABCdef...)
+4. Search for @userinfobot, start it — it replies with your Chat ID
+5. In server.py, fill in:
+   TELEGRAM_TOKEN   = "your_token_here"
+   TELEGRAM_CHAT_ID = "your_chat_id_here"
+
+
+STEP 5: INSTALL ARDUINO LIBRARY
+---------------------------------
+In Arduino IDE:
+  Sketch → Include Library → Manage Libraries
+  Search: "ESP32Servo"
+  Install: "ESP32Servo" by Kevin Harrington (latest version)
+
+
+STEP 6: CAMERA PIN CHECK
+--------------------------
+If the camera fails to initialise (red LED blinks 3x repeatedly):
+  - Your board uses a different FPC pin mapping
+  - Open Serial Monitor at 115200 baud to see the exact error
+  - Message me with the error and your board's schematic link
+
+
+STEP 7: RUN ORDER
+------------------
+Always start in this order:
+  1. Run server.py on your laptop first
+  2. Power on the ESP32-S3
+  3. Green LED = system ready and connected
+  4. Serial Monitor shows IP address and connection status
+
+
+STEP 8: TEST WITHOUT A MONKEY
+-------------------------------
+To test the full pipeline with your printed monkey photo:
+  1. Hold the photo about 30-50cm in front of the camera
+  2. Wave your hand near the PIR to trigger detection
+  3. The server terminal will show the prediction output
+  4. If confidence is too low, adjust CONFIDENCE_THRESHOLD in server.py
+     (lower it to 0.15 if needed for indoor printed photo testing)
+
+=============================================================
+WIRING SUMMARY
+=============================================================
+
+PIR SENSOR:
+  VCC  → 3.3V pin
+  GND  → GND
+  OUT  → GPIO 13
+
+MG90S SERVO:
+  Red   → 3.3V pin  (NOTE: weaker at 3.3V, fine for prototype)
+  Brown → GND
+  Orange (signal) → GPIO 12
+
+BUZZER (active buzzer):
+  +  → GPIO 11
+  -  → GND
+
+GREEN LED:
+  Anode (+, long leg) → 150Ω resistor → GPIO 10
+  Cathode (-, short leg) → GND
+
+YELLOW LED:
+  Anode (+) → 150Ω resistor → GPIO 9
+  Cathode (-) → GND
+
+RED LED:
+  Anode (+) → 150Ω resistor → GPIO 8
+  Cathode (-) → GND
+
+BATTERY (single 14500 3.7V):
+  + → 3.3V pin
+  - → GND
+
+=============================================================
+KNOWN LIMITATIONS (PROTOTYPE)
+=============================================================
+- MobileNetV2 is trained on ImageNet zoo photos, not farm monkeys.
+  It works for the prototype demo but a custom-trained model would
+  perform better in production.
+- Servo operates at 3.3V — weaker than rated 4.8V. Rotation will
+  be slower. This is acceptable for indoor demo only.
+- Single cell gives ~1-2 hours runtime depending on WiFi activity.
+- Confidence threshold may need tuning for your specific lighting
+  and printed photo quality.
+=============================================================
