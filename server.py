@@ -25,12 +25,13 @@ from ultralytics import YOLO
 # Set these before running the server:
 #   $env:TELEGRAM_TOKEN="<your_bot_token>"
 #   $env:TELEGRAM_CHAT_ID="<your_chat_id>"
-TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN", "8946920626:AAHCVPc32nvPcCHbEhUrr_eUQXtzk3_UHDg")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "5282666841")
+TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN", ".")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", ".")
 
 # ── Paths ─────────────────────────────────────────────────────
-BASE_FOLDER   = os.path.join(os.path.expanduser("~"), "Desktop", "ITT569_captures")
-MODEL_PATH    = r"C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\monkeymodel\monkey-guard\backend\models\best.pt"
+BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
+BASE_FOLDER   = os.path.join(BASE_DIR, "capture_image")
+MODEL_PATH    = os.path.join(BASE_DIR, "models", "best.pt")
 CSV_LOG_PATH  = os.path.join(BASE_FOLDER, "detection_log.csv")
 os.makedirs(BASE_FOLDER, exist_ok=True)
 
@@ -133,8 +134,11 @@ def send_telegram_alert(img_bytes, confidence, num_detections):
         log.error(f"[TG] Error: {e}")
 
 # ── Flask app ─────────────────────────────────────────────────
-from flask import Flask, request
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
+
 app = Flask(__name__)
+CORS(app)  # Enable CORS for frontend integration
 
 @app.route("/classify", methods=["POST"])
 def classify():
@@ -199,6 +203,52 @@ def classify():
 @app.route("/health", methods=["GET"])
 def health():
     return "ITT569 YOLOv8 server running", 200
+
+# ── API Endpoints for Dashboard ───────────────────────────────
+
+@app.route("/api/logs", methods=["GET"])
+def get_logs():
+    """Return all detection logs as JSON."""
+    if not os.path.exists(CSV_LOG_PATH):
+        return jsonify([])
+    try:
+        with open(CSV_LOG_PATH, "r") as f:
+            rows = list(csv.DictReader(f))
+        return jsonify(rows)
+    except Exception as e:
+        log.error(f"Error reading logs: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/stats", methods=["GET"])
+def get_stats():
+    """Calculate and return quick stats for dashboard KPI cards."""
+    if not os.path.exists(CSV_LOG_PATH):
+        return jsonify({"total": 0, "monkey": 0, "clear": 0, "avg_conf": 0.0})
+    try:
+        with open(CSV_LOG_PATH, "r") as f:
+            rows = list(csv.DictReader(f))
+        
+        total = len(rows)
+        monkey = sum(1 for r in rows if r.get("result") == "monkey")
+        clear = total - monkey
+        
+        confidences = [float(r.get("confidence_pct", 0)) for r in rows if r.get("result") == "monkey"]
+        avg_conf = sum(confidences) / len(confidences) if confidences else 0.0
+
+        return jsonify({
+            "total": total,
+            "monkey": monkey,
+            "clear": clear,
+            "avg_conf": round(avg_conf, 1)
+        })
+    except Exception as e:
+        log.error(f"Error calculating stats: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/images/<filename>", methods=["GET"])
+def get_image(filename):
+    """Serve saved images from the capture folder."""
+    return send_from_directory(BASE_FOLDER, filename)
 
 
 if __name__ == "__main__":
