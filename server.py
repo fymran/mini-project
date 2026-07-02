@@ -2,14 +2,11 @@
 # ITT569 - Classification Server v3
 # Changes from v2:
 #   - Swapped MobileNetV2 for YOLOv8 custom monkey model
-#   - Auto-logs every detection to CSV on Desktop
+#   - Auto-logs every detection to CSV inside the project folder
 #   - Draws bounding boxes on saved images when monkey detected
 # ============================================================
 # Requirements:
-#   pip install flask ultralytics pillow requests
-#
-# Place your trained model at:
-#   C:\Users\Hafiy Imran\Desktop\ITT569\models\best.pt
+#   pip install flask flask-cors ultralytics pillow requests
 # ============================================================
 
 import io
@@ -20,18 +17,33 @@ from datetime import datetime
 import requests
 from PIL import Image, ImageDraw, ImageFont
 from ultralytics import YOLO
+from dotenv import load_dotenv
+
+try:
+    from flask_cors import CORS
+except Exception:  # pragma: no cover - fallback for minimal environments
+    CORS = None
+
+# Load environment variables from .env in project root (if present)
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env'))
 
 # ── Telegram config ───────────────────────────────────────────
 # Set these before running the server:
 #   $env:TELEGRAM_TOKEN="<your_bot_token>"
 #   $env:TELEGRAM_CHAT_ID="<your_chat_id>"
-TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN", "8946920626:AAHCVPc32nvPcCHbEhUrr_eUQXtzk3_UHDg")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "5282666841")
+TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 # ── Paths ─────────────────────────────────────────────────────
-BASE_FOLDER   = os.path.join(os.path.expanduser("~"), "Desktop", "ITT569_captures")
-MODEL_PATH    = r"C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\monkeymodel\monkey-guard\backend\models\best.pt"
-CSV_LOG_PATH  = os.path.join(BASE_FOLDER, "detection_log.csv")
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+PARENT_DIR = os.path.dirname(PROJECT_DIR)
+BASE_FOLDER = os.path.join(PROJECT_DIR, "captures")
+MODEL_CANDIDATES = [
+    os.path.join(PARENT_DIR, "monkeymodel", "monkey-guard", "backend", "models", "best.pt"),
+    r"C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\monkeymodel\monkey-guard\backend\models\best.pt"
+]
+MODEL_PATH = next((path for path in MODEL_CANDIDATES if os.path.exists(path)), MODEL_CANDIDATES[0])
+CSV_LOG_PATH = os.path.join(PROJECT_DIR, "detection_log.csv")
 os.makedirs(BASE_FOLDER, exist_ok=True)
 
 # ── Logging ───────────────────────────────────────────────────
@@ -174,12 +186,90 @@ def test_telegram_connection():
     except Exception as exc:
         return False, str(exc)
 
-# ── Flask app ─────────────────────────────────────────────────
+# Flask app must be created before any route decorators are used
 from flask import Flask, request, jsonify, send_from_directory
-from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for frontend integration
+if CORS is not None:
+    CORS(app)  # Enable CORS for frontend integration
+
+
+@app.route("/test_telegram", methods=["GET"])
+def http_test_telegram():
+    ok, detail = test_telegram_connection()
+    return (jsonify({"ok": ok, "detail": detail}), 200) if ok else (jsonify({"ok": ok, "detail": detail}), 400)
+
+
+@app.route("/test_telegram_photo", methods=["GET"])
+def http_test_telegram_photo():
+    """Send the most recent saved image (if any) to Telegram for testing."""
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        return jsonify({"ok": False, "detail": "Telegram token or chat ID is not set."}), 400
+    # find latest file in BASE_FOLDER and send; handle errors cleanly
+    try:
+        files = [f for f in os.listdir(BASE_FOLDER) if f.lower().endswith('.jpg') or f.lower().endswith('.jpeg')]
+        if not files:
+            return jsonify({"ok": False, "detail": "No images in captures folder."}), 404
+        latest = sorted(files)[-1]
+        path = os.path.join(BASE_FOLDER, latest)
+        with open(path, 'rb') as fh:
+            img_bytes = fh.read()
+
+        # send via same method as alerts
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendPhoto"
+        files = {"photo": (latest, img_bytes, "image/jpeg")}
+        data = {"chat_id": TELEGRAM_CHAT_ID, "caption": f"Test photo: {latest}"}
+        resp = requests.post(url, files=files, data=data, timeout=10)
+        if resp.status_code == 200:
+            return jsonify({"ok": True, "detail": "Photo sent."}), 200
+        return jsonify({"ok": False, "detail": resp.text}), 400
+    except Exception as exc:
+        return jsonify({"ok": False, "detail": str(exc)}), 500
+
+
+def get_telegram_updates():
+    """Fetch getUpdates from Telegram and return parsed JSON or error."""
+    if not TELEGRAM_TOKEN:
+        return False, "TELEGRAM_TOKEN not set"
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates"
+        resp = requests.get(url, timeout=10)
+        data = resp.json()
+        if not data.get("ok"):
+            return False, data
+        return True, data
+    except Exception as exc:
+        return False, str(exc)
+
+
+@app.route("/telegram_get_updates", methods=["GET"])
+def http_telegram_get_updates():
+    ok, data = get_telegram_updates()
+    if not ok:
+        return jsonify({"ok": False, "detail": data}), 400
+
+    # Extract candidate chat IDs from updates
+    results = data.get("result", [])
+    chat_ids = set()
+    for item in results:
+        # messages
+        msg = item.get("message") or item.get("edited_message") or item.get("channel_post")
+        if msg:
+            chat = msg.get("chat")
+            if chat and "id" in chat:
+                chat_ids.add(chat.get("id"))
+        # callback_query
+        cb = item.get("callback_query")
+        if cb and cb.get("message") and cb.get("from"):
+            frm = cb.get("from")
+            if "id" in frm:
+                chat_ids.add(frm.get("id"))
+
+    chat_list = sorted(list(chat_ids))
+    suggested = chat_list[-1] if chat_list else None
+    return jsonify({"ok": True, "updates_count": len(results), "chat_ids": chat_list, "suggested_chat_id": suggested, "raw": data})
+
+# (Flask app initialized earlier)
 
 @app.route("/classify", methods=["POST"])
 def classify():
@@ -244,6 +334,41 @@ def classify():
 @app.route("/health", methods=["GET"])
 def health():
     return "ITT569 YOLOv8 server running", 200
+
+
+@app.route("/api/stats", methods=["GET"])
+def api_stats():
+    rows = []
+    if os.path.exists(CSV_LOG_PATH):
+        with open(CSV_LOG_PATH, "r", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+
+    total = len(rows)
+    monkey = sum(1 for row in rows if row.get("result") == "monkey")
+    clear = sum(1 for row in rows if row.get("result") == "clear")
+    confidences = [float(row.get("confidence_pct", 0) or 0) for row in rows if row.get("result") == "monkey"]
+    avg_conf = round(sum(confidences) / len(confidences), 2) if confidences else 0.0
+
+    return jsonify({
+        "total": total,
+        "monkey": monkey,
+        "clear": clear,
+        "avg_conf": avg_conf
+    })
+
+
+@app.route("/api/logs", methods=["GET"])
+def api_logs():
+    rows = []
+    if os.path.exists(CSV_LOG_PATH):
+        with open(CSV_LOG_PATH, "r", encoding="utf-8") as handle:
+            rows = list(csv.DictReader(handle))
+    return jsonify(rows)
+
+
+@app.route("/api/images/<path:filename>", methods=["GET"])
+def api_image(filename):
+    return send_from_directory(BASE_FOLDER, filename)
 
 
 if __name__ == "__main__":

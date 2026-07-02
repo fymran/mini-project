@@ -1,0 +1,3 @@
+﻿# Confidential local settings: do not commit
+.env
+esp32s3_firmware/config.h

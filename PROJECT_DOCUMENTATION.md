@@ -15,9 +15,12 @@ The system is designed to:
 ---
 
 > [!IMPORTANT]
-> **For Collaborators and AI Assistants:**
-> When running this project on a different machine, you MUST update the absolute paths in `server.py` to match the local environment.
-> Specifically, search for `MODEL_PATH` and `BASE_FOLDER` (if absolute) and update them. The recommended approach is to use relative paths where possible.
+> **Local machine paths for this laptop:**
+> - Project folder: `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project`
+> - Capture folder: `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project\captures`
+> - CSV log file: `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project\detection_log.csv`
+> - YOLO model file: `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\monkeymodel\monkey-guard\backend\models\best.pt`
+> - Frontend folder: `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project\frontend`
 
 ---
 
@@ -62,13 +65,13 @@ There is also an older prototype server in [serverttest.py](serverttest.py), whi
 
 ### Model
 The trained detection model is expected at:
-- the path configured in `server.py` (`MODEL_PATH`). If this path is absolute (e.g., `C:\Users\...`), please change it to match where `best.pt` is located on your machine.
+- `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\monkeymodel\monkey-guard\backend\models\best.pt`
 
 The current version uses a custom YOLOv8 model file named best.pt.
 
 ### Frontend Dashboard
 A modern Power BI-inspired dashboard built with React (Vite) and Tailwind CSS v4.
-- **Location**: `frontend/` directory.
+- **Location**: `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project\frontend`
 - **Features**: 
   - **Environment Toggle**: Switch between **Live Production** (actual Flask logs) and **Demo Sandbox** (mock data for presentation, featuring 48 sensor captures and timeline distributions).
   - **BI Filter Pane**: Left-hand sidebar panel to filter report results in real-time (All, Intrusions, Safe Checks).
@@ -102,8 +105,8 @@ The server loads the trained model and runs inference on the image.
 
 ### Step 6: Logging and Alerting
 The server then:
-- saves the image to the Desktop captures folder,
-- records the outcome in a CSV log,
+- saves the image to `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project\captures`,
+- records the outcome in `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project\detection_log.csv`,
 - optionally sends a Telegram alert with the image.
 
 ---
@@ -142,9 +145,14 @@ Install the required libraries using:
 - `pip install flask flask-cors ultralytics pillow requests`
 
 ### Model File & Paths
-Place the trained YOLOv8 model file at the path configured in `server.py`. 
-> **Note:** Open `server.py` and modify `MODEL_PATH` to point to the correct location of your `best.pt` file if you are on a different PC. 
-> Ensure `BASE_FOLDER` is pointing to `capture_image` inside this project directory.
+Place the trained YOLOv8 model file at:
+- `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\monkeymodel\monkey-guard\backend\models\best.pt`
+
+The server is configured to save captures in:
+- `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project\captures`
+
+And to write the CSV log to:
+- `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project\detection_log.csv`
 
 ### Wi-Fi and Server Address
 Update the ESP32 firmware to use the correct Wi-Fi credentials and your laptop’s local IP address.
@@ -155,22 +163,22 @@ If you want alerts, configure a Telegram bot token and chat ID before running th
 ---
 
 ## 7. How to Run the Project
-1. Open `server.py` and double-check that `MODEL_PATH` points to the correct location of `best.pt` on your computer.
-2. Start the Python server: `python server.py`.
-3. In a new terminal, navigate to the frontend folder: `cd frontend`.
+1. Ensure the model file exists at `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\monkeymodel\monkey-guard\backend\models\best.pt`.
+2. Start the Python server from the project folder: `cd C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project` then `python server.py`.
+3. In a new terminal, navigate to the frontend folder: `cd C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project\frontend`.
 4. Install frontend dependencies: `npm install`.
 5. Start the frontend dashboard: `npm run dev`.
 6. Upload the firmware to the ESP32-S3 board.
 7. Power the board and wait for Wi-Fi connection.
 8. Trigger the PIR sensor to start image capture and classification.
-9. Check the saved images in the `capture_image` folder and view real-time data on the React dashboard.
+9. Check the saved images in `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project\captures` and view real-time data on the React dashboard.
 
 ---
 
 ## 8. Outputs Produced by the System
 The system generates:
-- saved images in the Desktop captures folder,
-- a detection log CSV file,
+- saved images in `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project\captures`,
+- a detection log CSV file at `C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\mini project\detection_log.csv`,
 - Telegram notifications for monkey detections,
 - terminal logs from the server and ESP32 board.
 

@@ -10,15 +10,12 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ESP32Servo.h>
+#include "config.h"
 
 #define DBG Serial0
 
 // ── WiFi credentials ──────────────────────────────────────────
-const char* WIFI_SSID     = "tenet";
-const char* WIFI_PASSWORD = "salambph";
-
-// ── Laptop server URL ─────────────────────────────────────────
-const char* SERVER_URL = "http://192.168.5.188:5000/classify";
+// Move these values into config.h to keep firmware config centralized.
 
 // ── Camera pins (CAMERA_MODEL_ESP32S3_EYE) ───────────────────
 #define PWDN_GPIO_NUM  -1
@@ -112,8 +109,8 @@ bool initCamera() {
   if (s) {
     s->set_brightness(s, 1);
     s->set_saturation(s, 0);
-    s->set_vflip(s, 0);
-    s->set_hmirror(s, 1);
+    s->set_vflip(s, 1);
+    s->set_hmirror(s, 0);
   }
   DBG.println("[CAM] Initialised OK");
   return true;
