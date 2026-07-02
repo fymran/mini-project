@@ -25,13 +25,14 @@ from ultralytics import YOLO
 # Set these before running the server:
 #   $env:TELEGRAM_TOKEN="<your_bot_token>"
 #   $env:TELEGRAM_CHAT_ID="<your_chat_id>"
-TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN", "8946920626:AAHCVPc32nvPcCHbEhUrr_eUQXtzk3_UHDg")
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "5282666841")
+TELEGRAM_TOKEN   = os.getenv("TELEGRAM_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
 
 # ── Paths ─────────────────────────────────────────────────────
-BASE_FOLDER   = os.path.join(os.path.expanduser("~"), "Desktop", "ITT569_captures")
-MODEL_PATH    = r"C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\monkeymodel\monkey-guard\backend\models\best.pt"
-CSV_LOG_PATH  = os.path.join(BASE_FOLDER, "detection_log.csv")
+PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_FOLDER = os.path.join(PROJECT_DIR, "captures")
+MODEL_PATH  = r"C:\Users\Hafiy Imran\Desktop\ITT569 - IoT\monkeymodel\monkey-guard\backend\models\best.pt"
+CSV_LOG_PATH = os.path.join(PROJECT_DIR, "detection_log.csv")
 os.makedirs(BASE_FOLDER, exist_ok=True)
 
 # ── Logging ───────────────────────────────────────────────────
@@ -61,25 +62,51 @@ CSV_HEADERS = [
 
 def init_csv():
     """Create CSV with headers if it does not exist."""
+    os.makedirs(BASE_FOLDER, exist_ok=True)
     if not os.path.exists(CSV_LOG_PATH):
-        with open(CSV_LOG_PATH, "w", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=CSV_HEADERS)
-            writer.writeheader()
-        log.info(f"CSV log created: {CSV_LOG_PATH}")
+        try:
+            with open(CSV_LOG_PATH, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=CSV_HEADERS)
+                writer.writeheader()
+            log.info(f"CSV log created: {CSV_LOG_PATH}")
+        except PermissionError as exc:
+            log.warning(f"[CSV] Could not create primary log file: {exc}")
+
 
 def get_next_test_number():
     """Read CSV and return next test number."""
-    if not os.path.exists(CSV_LOG_PATH):
+    try:
+        if not os.path.exists(CSV_LOG_PATH):
+            return 1
+        with open(CSV_LOG_PATH, "r", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+        return len(rows) + 1
+    except Exception as exc:
+        log.warning(f"[CSV] Could not read log file: {exc}")
         return 1
-    with open(CSV_LOG_PATH, "r") as f:
-        rows = list(csv.DictReader(f))
-    return len(rows) + 1
+
 
 def append_to_csv(row: dict):
-    """Append one detection result row to the CSV."""
-    with open(CSV_LOG_PATH, "a", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_HEADERS)
-        writer.writerow(row)
+    """Append one detection result row to the CSV, with a fallback file if needed."""
+    target_path = CSV_LOG_PATH
+    try:
+        init_csv()
+        with open(target_path, "a", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=CSV_HEADERS)
+            writer.writerow(row)
+    except Exception as exc:
+        fallback_path = os.path.join(BASE_FOLDER, "detection_log_fallback.csv")
+        try:
+            if not os.path.exists(fallback_path):
+                with open(fallback_path, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=CSV_HEADERS)
+                    writer.writeheader()
+            with open(fallback_path, "a", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=CSV_HEADERS)
+                writer.writerow(row)
+            log.warning(f"[CSV] Primary log unavailable; wrote to fallback: {fallback_path}")
+        except Exception as fallback_exc:
+            log.warning(f"[CSV] Logging failed completely: {fallback_exc}")
 
 # ── Image saving with bounding boxes ──────────────────────────
 def save_image(img_bytes, label, boxes=None):
@@ -108,11 +135,8 @@ def save_image(img_bytes, label, boxes=None):
 
 # ── Telegram alert ────────────────────────────────────────────
 def send_telegram_alert(img_bytes, confidence, num_detections):
-    if (
-        TELEGRAM_TOKEN in {"YOUR_TELEGRAM_BOT_TOKEN", ""}
-        or TELEGRAM_CHAT_ID in {"YOUR_CHAT_ID", ""}
-    ):
-        log.warning("[TG] Telegram not configured — skipping.")
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        log.warning("[TG] Telegram not configured — set TELEGRAM_TOKEN and TELEGRAM_CHAT_ID to enable alerts.")
         return
     try:
         caption = (
@@ -128,9 +152,28 @@ def send_telegram_alert(img_bytes, confidence, num_detections):
         if resp.status_code == 200:
             log.info("[TG] Alert sent.")
         else:
-            log.warning(f"[TG] Failed: {resp.text}")
+            log.warning(f"[TG] Failed: {resp.text}. Check that the bot can message the provided chat ID.")
     except Exception as e:
         log.error(f"[TG] Error: {e}")
+
+
+def test_telegram_connection():
+    """Send a simple text message to verify the bot/chat configuration."""
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        return False, "Telegram token or chat ID is not set."
+
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        payload = {
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": "ITT569 Telegram test OK"
+        }
+        resp = requests.post(url, data=payload, timeout=10)
+        if resp.status_code == 200:
+            return True, "Telegram test message sent successfully."
+        return False, resp.text
+    except Exception as exc:
+        return False, str(exc)
 
 # ── Flask app ─────────────────────────────────────────────────
 from flask import Flask, request
@@ -199,6 +242,14 @@ def classify():
 @app.route("/health", methods=["GET"])
 def health():
     return "ITT569 YOLOv8 server running", 200
+
+
+@app.route("/test_telegram", methods=["GET"])
+def test_telegram():
+    ok, detail = test_telegram_connection()
+    if ok:
+        return {"ok": True, "message": detail}, 200
+    return {"ok": False, "message": detail}, 400
 
 
 if __name__ == "__main__":
