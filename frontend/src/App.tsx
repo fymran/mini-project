@@ -9,7 +9,7 @@ import {
   RotateCw, Filter, HardDrive, Cpu, AlertTriangle, Layers, Play
 } from 'lucide-react';
 
-const API_BASE = 'http://127.0.0.1:5000/api';
+const API_BASE = '/api';
 const IMAGE_BASE = `${API_BASE}/images`;
 
 // Interfaces
@@ -59,7 +59,7 @@ const MOCK_HOURLY = [
 
 function App() {
   // Mode selection: "live" vs "demo"
-  const [dataMode, setDataMode] = useState<'live' | 'demo'>('demo');
+  const [dataMode, setDataMode] = useState<'live' | 'demo'>('live');
   
   // System status states
   const [serverStatus, setServerStatus] = useState<'online' | 'offline'>('offline');
